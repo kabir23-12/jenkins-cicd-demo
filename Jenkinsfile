@@ -1,37 +1,74 @@
 pipeline {
+
     agent any
+
+    environment {
+        S3_BUCKET = 'YOUR_BUCKET_NAME'
+    }
+
+    triggers {
+        githubPush()
+    }
 
     stages {
 
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo 'Starting Build...'
-                echo 'Application build completed successfully.'
+                checkout scm
             }
         }
+
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install -r requirements.txt
+                '''
+            }
+        }
+
+
+        stage('Lint') {
+            steps {
+                sh '''
+                . venv/bin/activate
+                flake8 app.py test_app.py
+                '''
+            }
+        }
+
 
         stage('Test') {
             steps {
-                echo 'Starting Tests...'
-                echo 'All tests passed successfully.'
+                sh '''
+                . venv/bin/activate
+                pytest -v
+                '''
             }
         }
 
-        stage('Deploy') {
+
+        stage('Package') {
             steps {
-                echo 'Starting Deployment...'
-                echo 'Application deployed successfully.'
+                sh '''
+                mkdir -p dist
+                tar -czf dist/app-${BUILD_NUMBER}.tar.gz \
+                app.py test_app.py requirements.txt
+                '''
             }
         }
-    }
 
-    post {
-        success {
-            echo 'CI/CD Pipeline completed successfully!'
-        }
 
-        failure {
-            echo 'CI/CD Pipeline failed.'
+        stage('Upload to S3') {
+            steps {
+                sh '''
+                aws s3 cp \
+                dist/app-${BUILD_NUMBER}.tar.gz \
+                s3://${S3_BUCKET}/
+                '''
+            }
         }
     }
 }
