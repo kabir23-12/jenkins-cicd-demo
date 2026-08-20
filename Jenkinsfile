@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        S3_BUCKET = 'YOUR_BUCKET_NAME'
+        S3_BUCKET = 'python-ci-cd-kabir'
     }
 
     triggers {
